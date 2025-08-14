@@ -1,0 +1,11 @@
+pyproject.toml
+setup.py
+algorand_reputation/__init__.py
+algorand_reputation/client.py
+algorand_reputation/reputation.py
+algorand_reputation.egg-info/PKG-INFO
+algorand_reputation.egg-info/SOURCES.txt
+algorand_reputation.egg-info/dependency_links.txt
+algorand_reputation.egg-info/requires.txt
+algorand_reputation.egg-info/top_level.txt
+tests/test_reputation.py

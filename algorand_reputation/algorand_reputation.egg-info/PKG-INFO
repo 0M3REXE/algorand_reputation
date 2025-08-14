@@ -1,0 +1,119 @@
+Metadata-Version: 2.4
+Name: algorand_reputation
+Version: 0.1.1
+Summary: Heuristic reputation scoring utilities for Algorand accounts.
+Home-page: https://github.com/0M3REXE/algorand_reputation
+Author: Omer Abdullah
+Author-email: omerhyd8080@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: algosdk>=2.6.0
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+# Algorand Reputation Score
+
+Heuristic reputation scoring utilities for Algorand accounts: weigh transaction activity, recency, ASA holdings, and inactivity to produce a normalized 0–100 score. Useful as a starting signal; not a substitute for deep risk analysis.
+
+## Features
+
+* Recency weighting (recent vs stale activity)
+* Transaction type differentiation (payments, asset transfers, app calls)
+* Frequency reward / high-frequency penalty
+* Inactivity decay beyond ~6 months
+* Optional ASA holding contribution
+* Configurable weights at construction time
+* Simple, typed Python API
+
+## Install
+
+From source:
+
+```bash
+git clone https://github.com/0M3REXE/algorand_reputation
+cd algorand_reputation
+pip install .
+```
+
+Or (once released to PyPI):
+
+```bash
+pip install algorand_reputation
+```
+
+## Quick Start
+
+```python
+from algorand_reputation import AlgorandClient, ReputationScore
+
+client = AlgorandClient(network_choice="testnet", purestake_token="YOUR_API_KEY")
+rep = ReputationScore(client)
+score = rep.get_reputation_score("YOUR_ACCOUNT_ADDRESS")
+print(score)
+```
+
+You can also supply the API key via environment variable `ALGOD_API_KEY` (or `PURESTAKE_API_KEY`) and omit `purestake_token`.
+
+## Custom Weights
+
+```python
+rep = ReputationScore(
+   client,
+   recent_weight=12,
+   stale_weight=4,
+   app_call_points=25,
+   asa_holding_multiplier=0.05,
+)
+```
+
+## Return Values & Normalization
+
+The raw score accumulates heuristic points then is normalized against a configurable cap (default 100) and clamped to [0, 100].
+
+## Testing (Local)
+
+Install dev extras and run tests:
+
+```bash
+pip install -e .[dev]
+pytest -q
+```
+
+## Roadmap / Ideas
+
+* Pagination & historical depth controls
+* Weight tuning via calibration dataset
+* Pluggable scoring modules (e.g. governance participation)
+* CLI tool (`algorep score <address>`)
+
+## Contributing
+
+PRs welcome. Please:
+
+1. Add/adjust tests for behavior changes
+2. Run format/lint (coming soon: ruff config)
+3. Keep logic explainable and auditable
+
+## License
+
+MIT
+
+## Disclaimer
+
+Scores are heuristic signals only. DO NOT use alone for financial decisions or compliance workflows.
+
