@@ -7,7 +7,7 @@ recency weighting, inactivity decay, ASA holding influence, and normalization.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Final, Iterable
 
 
 class ReputationScore:
@@ -23,7 +23,7 @@ class ReputationScore:
     Logic is intentionally simple & explainable. Not production risk analysis.
     """
 
-    SIX_MONTHS_SECONDS = 60 * 60 * 24 * 30 * 6  # approximate
+    SIX_MONTHS_SECONDS: Final = 60 * 60 * 24 * 30 * 6  # approximate
 
     def __init__(
         self,
