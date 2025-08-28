@@ -1,3 +1,9 @@
+"""Reputation scoring logic for Algorand accounts.
+
+Implements explainable heuristics with enhanced pattern analysis, frequency,
+recency weighting, inactivity decay, ASA holding influence, and normalization.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

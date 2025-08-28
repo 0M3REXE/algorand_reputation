@@ -1,13 +1,19 @@
+"""Algorand algod and indexer client wrapper.
+
+Provides input sanitization/validation, simple rate limiting, and retry/backoff
+for resilient access to Algorand nodes (algod) and the indexer.
+"""
+
 from __future__ import annotations
 
 import os
 import time
 from typing import Any, Dict, List, Optional
-
+from typing import Final
 from algosdk import encoding as algoenc
 from algosdk.v2client import algod, indexer
 
-NETWORKS = {
+NETWORKS: Final = {
     "mainnet": {
         "algod": "https://mainnet-api.4160.nodely.dev",
         "indexer": "https://mainnet-idx.4160.nodely.dev",
