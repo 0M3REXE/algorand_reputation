@@ -70,8 +70,8 @@ class TestAlgorandClient:
             client._last_call_time = 0.0
             client._throttle()
 
-            # Should sleep for 0.05 seconds to maintain 0.1s interval
-            mock_sleep.assert_called_once_with(0.05)
+            # With now=0.0 and last_call_time=0.0, we sleep full min interval (0.1)
+            mock_sleep.assert_called_once_with(0.1)
 
     def test_fetch_account_balance_success(self):
         """Test successful account balance fetch."""

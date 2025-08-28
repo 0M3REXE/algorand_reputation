@@ -27,7 +27,7 @@ class TestPackageImports:
     def test_all_exports(self):
         """Test that __all__ contains expected exports."""
         from algorand_reputation import __all__
-        expected_exports = ["AlgorandClient", "ReputationScore"]
+    expected_exports = ["AlgorandClient", "ReputationScore", "__version__"]
         assert __all__ == expected_exports
 
     def test_classes_are_different(self):

@@ -48,6 +48,15 @@ $env:ALGOD_API_KEY = "YOUR_API_KEY"
 client = AlgorandClient(network_choice="testnet", purestake_token="YOUR_API_KEY")
 ```
 
+### Optional environment configuration
+
+You can tune the client behavior using these env vars:
+
+- ALGOREP_RATE_LIMIT_PER_SEC: number (e.g., 20) to enable client-side throttle
+- ALGOREP_MAX_RETRIES: integer retry attempts for transient failures
+- ALGOREP_BACKOFF_FACTOR: float base delay for exponential backoff
+- ALGOREP_RETRY_JITTER: 1/true/yes/on to add jitter to backoff delays
+
 ## 📖 Quick Start
 
 ```python
