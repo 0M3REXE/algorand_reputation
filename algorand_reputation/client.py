@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import time
 from typing import Any, Dict, List, Optional
+
+from algosdk import encoding as algoenc
 from algosdk.v2client import algod, indexer
 
 NETWORKS = {
@@ -28,6 +30,10 @@ class AlgorandClient:
         API key/token. If None, tries env vars: ALGOD_API_KEY, PURESTAKE_API_KEY.
     rate_limit_per_sec: float | None
         Optional simple client-side rate limit (requests per second) shared across calls.
+    max_retries: int
+        Number of retries on transient failures (e.g., rate limit/timeout).
+    backoff_factor: float
+        Exponential backoff base delay in seconds.
     """
 
     def __init__(
@@ -35,6 +41,8 @@ class AlgorandClient:
         network_choice: str = "testnet",
         purestake_token: Optional[str] = None,
         rate_limit_per_sec: Optional[float] = None,
+        max_retries: int = 3,
+        backoff_factor: float = 0.5,
     ) -> None:
         network_choice = network_choice.lower().strip()
         if network_choice not in NETWORKS:
@@ -48,7 +56,10 @@ class AlgorandClient:
         )
         if not token:
             raise ValueError(
-                "Missing PureStake / Nodely API token. Pass purestake_token or set ALGOD_API_KEY/PURESTAKE_API_KEY env var."
+                (
+                    "Missing PureStake / Nodely API token. Pass purestake_token or set "
+                    "ALGOD_API_KEY/PURESTAKE_API_KEY env var."
+                )
             )
 
         self.algod_address = NETWORKS[network_choice]["algod"]
@@ -62,6 +73,10 @@ class AlgorandClient:
         self._min_interval = 1.0 / rate_limit_per_sec if rate_limit_per_sec else 0.0
         self._last_call_time = 0.0
 
+        # retries
+        self._max_retries = max(0, int(max_retries))
+        self._backoff_factor = max(0.0, float(backoff_factor))
+
     # --------------- internal helpers ---------------
     def _throttle(self) -> None:
         if self._min_interval <= 0:
@@ -72,12 +87,38 @@ class AlgorandClient:
             time.sleep(self._min_interval - delta)
         self._last_call_time = time.time()
 
+    def _normalize_address(self, address: str) -> str:
+        """Trim and normalize address casing for validation."""
+        return (address or "").strip().upper()
+
+    def _validate_address(self, address: str) -> str:
+        """Normalize and validate an Algorand address or raise ValueError."""
+        normalized = self._normalize_address(address)
+        if not normalized or not algoenc.is_valid_address(normalized):
+            raise ValueError(f"Invalid Algorand address: {address!r}")
+        return normalized
+
+    def _with_retry(self, func, *args, **kwargs):
+        """Execute a callable with throttle and retry/backoff on transient errors."""
+        attempt = 0
+        while True:
+            try:
+                self._throttle()
+                return func(*args, **kwargs)
+            except Exception:  # pragma: no cover - network behavior varies
+                attempt += 1
+                if attempt > self._max_retries:
+                    raise
+                # exponential backoff
+                delay = self._backoff_factor * (2 ** (attempt - 1))
+                time.sleep(delay)
+
     # --------------- public API ---------------
     def fetch_account_balance(self, account_address: str) -> Optional[float]:
         """Return account balance in ALGOs or None on error."""
         try:
-            self._throttle()
-            account_info = self.algod_client.account_info(account_address)
+            addr = self._validate_address(account_address)
+            account_info = self._with_retry(self.algod_client.account_info, addr)
             return account_info.get("amount", 0) / 1e6
         except Exception as e:  # pragma: no cover - network failures
             print(f"[algorand_reputation] Error fetching account balance: {e}")
@@ -86,12 +127,15 @@ class AlgorandClient:
     def fetch_transactions(self, account_address: str, limit: int = 1000) -> List[Dict[str, Any]]:
         """Fetch recent transactions for an address.
 
-        Returns empty list on failure. Limit parameter caps result size (indexer may page beyond but we keep simple).
+        Returns empty list on failure. Limit parameter caps result size
+        (indexer may page beyond but we keep simple).
         """
         try:
-            self._throttle()
-            response = self.indexer_client.search_transactions_by_address(
-                account_address, limit=limit
+            addr = self._validate_address(account_address)
+            response = self._with_retry(
+                self.indexer_client.search_transactions_by_address,
+                addr,
+                limit=limit,
             )
             return response.get("transactions", [])
         except Exception as e:  # pragma: no cover
@@ -104,8 +148,8 @@ class AlgorandClient:
         Empty list on failure.
         """
         try:
-            self._throttle()
-            response = self.indexer_client.lookup_account_assets(account_address)
+            addr = self._validate_address(account_address)
+            response = self._with_retry(self.indexer_client.lookup_account_assets, addr)
             return response.get("assets", [])
         except Exception as e:  # pragma: no cover
             print(f"[algorand_reputation] Error fetching ASA holdings: {e}")
