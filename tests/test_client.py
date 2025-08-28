@@ -5,6 +5,9 @@ import pytest
 from unittest.mock import patch
 from algorand_reputation.client import AlgorandClient, NETWORKS
 
+# Known-valid Algorand address (all-zero public key with checksum from Algorand docs)
+VALID_ADDR = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+
 
 class TestAlgorandClient:
     """Test cases for AlgorandClient class."""
@@ -78,7 +81,7 @@ class TestAlgorandClient:
             client = AlgorandClient(network_choice="testnet")
 
             with patch.object(client.algod_client, 'account_info', return_value=mock_response):
-                result = client.fetch_account_balance("test_address")
+                result = client.fetch_account_balance(VALID_ADDR)
                 assert result == 1.0
 
     def test_fetch_account_balance_error(self):
@@ -87,7 +90,7 @@ class TestAlgorandClient:
             client = AlgorandClient(network_choice="testnet")
 
             with patch.object(client.algod_client, 'account_info', side_effect=Exception("Network error")):
-                result = client.fetch_account_balance("test_address")
+                result = client.fetch_account_balance(VALID_ADDR)
                 assert result is None
 
     def test_fetch_transactions_success(self):
@@ -98,7 +101,7 @@ class TestAlgorandClient:
             client = AlgorandClient(network_choice="testnet")
 
             with patch.object(client.indexer_client, 'search_transactions_by_address', return_value=mock_response):
-                result = client.fetch_transactions("test_address", limit=100)
+                result = client.fetch_transactions(VALID_ADDR, limit=100)
                 assert len(result) == 2
                 assert result[0]["tx-type"] == "pay"
 
@@ -108,7 +111,7 @@ class TestAlgorandClient:
             client = AlgorandClient(network_choice="testnet")
 
             with patch.object(client.indexer_client, 'search_transactions_by_address', side_effect=Exception("Network error")):
-                result = client.fetch_transactions("test_address")
+                result = client.fetch_transactions(VALID_ADDR)
                 assert result == []
 
     def test_fetch_asa_holdings_success(self):
@@ -119,7 +122,7 @@ class TestAlgorandClient:
             client = AlgorandClient(network_choice="testnet")
 
             with patch.object(client.indexer_client, 'lookup_account_assets', return_value=mock_response):
-                result = client.fetch_asa_holdings("test_address")
+                result = client.fetch_asa_holdings(VALID_ADDR)
                 assert len(result) == 2
                 assert result[0]["asset-id"] == 1
 
@@ -129,8 +132,48 @@ class TestAlgorandClient:
             client = AlgorandClient(network_choice="testnet")
 
             with patch.object(client.indexer_client, 'lookup_account_assets', side_effect=Exception("Network error")):
-                result = client.fetch_asa_holdings("test_address")
+                result = client.fetch_asa_holdings(VALID_ADDR)
                 assert result == []
+
+    def test_env_overrides_and_jitter_toggle(self):
+        """Env variables should override constructor defaults and toggle jitter."""
+        with patch.dict(os.environ, {
+            "ALGOD_API_KEY": "test_key",
+            "ALGOREP_RATE_LIMIT_PER_SEC": "20",
+            "ALGOREP_MAX_RETRIES": "5",
+            "ALGOREP_BACKOFF_FACTOR": "0.25",
+            "ALGOREP_RETRY_JITTER": "1",
+        }):
+            client = AlgorandClient(network_choice="testnet")
+            assert client._rate_limit_per_sec == 20.0
+            assert client._min_interval == 0.05
+            assert client._max_retries == 5
+            assert client._backoff_factor == 0.25
+            assert client._enable_jitter is True
+
+        # Jitter off
+        with patch.dict(os.environ, {
+            "ALGOD_API_KEY": "test_key",
+            "ALGOREP_RETRY_JITTER": "0",
+        }, clear=True):
+            client = AlgorandClient(network_choice="testnet")
+            assert client._enable_jitter is False
+
+    def test_fetch_transactions_limit_clamp(self):
+        """Limits greater than 10000 should clamp to 10000; <=0 become 1."""
+        with patch.dict(os.environ, {"ALGOD_API_KEY": "test_key"}):
+            client = AlgorandClient(network_choice="testnet")
+
+            with patch.object(client.indexer_client, 'search_transactions_by_address', return_value={"transactions": []}) as mocked:
+                client.fetch_transactions(VALID_ADDR, limit=200000)
+                # Verify call used clamped limit
+                _, kwargs = mocked.call_args
+                assert kwargs.get("limit") == 10000
+
+            with patch.object(client.indexer_client, 'search_transactions_by_address', return_value={"transactions": []}) as mocked:
+                client.fetch_transactions(VALID_ADDR, limit=0)
+                _, kwargs = mocked.call_args
+                assert kwargs.get("limit") == 1
 
     def test_network_method(self):
         """Test network method returns correct network choice."""

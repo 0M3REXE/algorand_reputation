@@ -7,7 +7,7 @@ recency weighting, inactivity decay, ASA holding influence, and normalization.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Final, Iterable
+from typing import Any, Dict, Final, Iterable, TypedDict
 
 
 class ReputationScore:
@@ -74,9 +74,16 @@ class ReputationScore:
             return self.recent_weight
         return self.stale_weight
 
+    class PatternAnalysis(TypedDict):
+        unique_receivers: int
+        total_volume: float
+        avg_transaction_size: float
+        transaction_types: Dict[str, int]
+        receiver_diversity_score: float
+
     def analyze_transaction_patterns(
         self, transactions: Iterable[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    ) -> "ReputationScore.PatternAnalysis":
         """Analyze transaction patterns for advanced scoring.
 
         Returns a dict with keys: unique_receivers, total_volume,

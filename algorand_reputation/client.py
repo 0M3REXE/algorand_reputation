@@ -59,11 +59,31 @@ class AlgorandClient:
             network_choice = "testnet"
         self.network_choice = network_choice
 
-        # Env-driven toggles (None means use env fallback; else honor arg)
+        # Env-driven toggles and overrides
         if enable_jitter is None:
             env_val = os.getenv("ALGOREP_RETRY_JITTER", "0").lower()
             enable_jitter = env_val in {"1", "true", "yes", "on"}
         self._enable_jitter = bool(enable_jitter)
+
+        # Optional env overrides for rate limiting and retries
+        env_rate = os.getenv("ALGOREP_RATE_LIMIT_PER_SEC")
+        if env_rate is not None:
+            try:
+                rate_limit_per_sec = float(env_rate)
+            except ValueError:
+                pass
+        env_retries = os.getenv("ALGOREP_MAX_RETRIES")
+        if env_retries is not None:
+            try:
+                max_retries = int(env_retries)
+            except ValueError:
+                pass
+        env_backoff = os.getenv("ALGOREP_BACKOFF_FACTOR")
+        if env_backoff is not None:
+            try:
+                backoff_factor = float(env_backoff)
+            except ValueError:
+                pass
 
         token = (
             purestake_token

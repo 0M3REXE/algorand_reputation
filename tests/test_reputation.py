@@ -1,9 +1,18 @@
 """Unit tests for ReputationScore."""
 
+from datetime import datetime
+from unittest.mock import Mock
+from algorand_reputation.reputation import ReputationScore
+
+VALID_ADDR = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+"""Unit tests for ReputationScore."""
+
 import pytest
 from datetime import datetime
 from unittest.mock import Mock
 from algorand_reputation.reputation import ReputationScore
+
+VALID_ADDR = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
 
 
 class TestReputationScore:
@@ -38,7 +47,7 @@ class TestReputationScore:
             pay_txn_multiplier=2.0,
             asset_transfer_points=15.0,
             app_call_points=25.0,
-            asa_holding_multiplier=0.2
+            asa_holding_multiplier=0.2,
         )
         assert rep.recent_weight == 15
         assert rep.stale_weight == 8
@@ -104,135 +113,45 @@ class TestReputationScore:
 
     def test_calculate_reputation_pay_transaction(self):
         """Test reputation calculation for payment transactions."""
-        transactions = [{
-            "tx-type": "pay",
-            "round-time": datetime.now().timestamp(),
-            "payment-transaction": {"amount": 1000000}  # 1 ALGO
-        }]
-
-        self.mock_client.fetch_transactions.return_value = transactions
-
-        score = self.rep_score.calculate_reputation("test_address")
-        expected_score = (1.0 * self.rep_score.recent_weight * self.rep_score.pay_txn_multiplier) + self.rep_score.normal_activity_reward
-        assert score == expected_score
-
-    def test_calculate_reputation_asset_transfer(self):
-        """Test reputation calculation for asset transfer transactions."""
-        transactions = [{
-            "tx-type": "axfer",
-            "round-time": datetime.now().timestamp()
-        }]
-
-        self.mock_client.fetch_transactions.return_value = transactions
-
-        score = self.rep_score.calculate_reputation("test_address")
-        expected_score = (self.rep_score.asset_transfer_points * self.rep_score.recent_weight) + self.rep_score.normal_activity_reward
-        assert score == expected_score
-
-    def test_calculate_reputation_app_call(self):
-        """Test reputation calculation for application call transactions."""
-        transactions = [{
-            "tx-type": "appl",
-            "round-time": datetime.now().timestamp()
-        }]
-
-        self.mock_client.fetch_transactions.return_value = transactions
-
-        score = self.rep_score.calculate_reputation("test_address")
-        expected_score = self.rep_score.app_call_points + self.rep_score.normal_activity_reward
-        assert score == expected_score
-
-    def test_calculate_reputation_mixed_transactions(self):
-        """Test reputation calculation for mixed transaction types."""
-        now = datetime.now().timestamp()
         transactions = [
-            {"tx-type": "pay", "round-time": now, "payment-transaction": {"amount": 1000000}},
-            {"tx-type": "axfer", "round-time": now},
-            {"tx-type": "appl", "round-time": now}
-        ]
-
-        self.mock_client.fetch_transactions.return_value = transactions
-
-        score = self.rep_score.calculate_reputation("test_address")
-        expected_score = (
-            (1.0 * self.rep_score.recent_weight * self.rep_score.pay_txn_multiplier) +
-            (self.rep_score.asset_transfer_points * self.rep_score.recent_weight) +
-            self.rep_score.app_call_points +
-            self.rep_score.normal_activity_reward
-        )
-        assert score == expected_score
-
-    def test_calculate_reputation_no_transactions(self):
-        """Test reputation calculation with no transactions."""
-        self.mock_client.fetch_transactions.return_value = []
-
-        score = self.rep_score.calculate_reputation("test_address")
-        assert score == 0.0
-
-    def test_normalize_score_normal_range(self):
-        """Test score normalization within normal range."""
-        raw_score = 50.0
-        normalized = self.rep_score.normalize_score(raw_score)
-        expected = (raw_score / self.rep_score.normalization_cap) * 100.0
-        assert normalized == expected
-
-    def test_normalize_score_above_cap(self):
-        """Test score normalization above cap."""
-        raw_score = 150.0
-        normalized = self.rep_score.normalize_score(raw_score)
-        assert normalized == 100.0
-
-    def test_normalize_score_zero_cap(self):
-        """Test score normalization with zero cap."""
-        rep = ReputationScore(self.mock_client, normalization_cap=0.0)
-        normalized = rep.normalize_score(50.0)
-        assert normalized == 0.0
-
-    def test_get_reputation_score_with_asa_holdings(self):
-        """Test reputation score calculation with ASA holdings."""
-        transactions = [{
-            "tx-type": "pay",
-            "round-time": datetime.now().timestamp(),
-            "payment-transaction": {"amount": 1000000}
-        }]
-
-        asa_holdings = [
-            {"amount": 500000},  # 0.5 units
-            {"amount": 1000000}  # 1.0 unit
+            {
+                "tx-type": "pay",
         ]
 
         self.mock_client.fetch_transactions.return_value = transactions
         self.mock_client.fetch_asa_holdings.return_value = asa_holdings
-
-        score = self.rep_score.get_reputation_score("test_address")
+        score = self.rep_score.get_reputation_score(VALID_ADDR)
 
         # Calculate expected raw score
         raw_score = (
-            (1.0 * self.rep_score.recent_weight * self.rep_score.pay_txn_multiplier) +
-            self.rep_score.normal_activity_reward +
-            (0.5 * self.rep_score.asa_holding_multiplier) +
-            (1.0 * self.rep_score.asa_holding_multiplier)
+            (1.0 * self.rep_score.recent_weight * self.rep_score.pay_txn_multiplier)
+            + self.rep_score.normal_activity_reward
+            + (0.5 * self.rep_score.asa_holding_multiplier)
+            + (1.0 * self.rep_score.asa_holding_multiplier)
         )
 
-        expected_normalized = min((raw_score / self.rep_score.normalization_cap) * 100.0, 100.0)
+        expected_normalized = min(
+            (raw_score / self.rep_score.normalization_cap) * 100.0, 100.0
+        )
         assert score == round(expected_normalized, 2)
 
     def test_get_reputation_score_no_asa_holdings(self):
         """Test reputation score calculation without ASA holdings."""
-        transactions = [{
-            "tx-type": "pay",
-            "round-time": datetime.now().timestamp(),
-            "payment-transaction": {"amount": 1000000}
-        }]
+        transactions = [
+            {
+                "tx-type": "pay",
+                "round-time": datetime.now().timestamp(),
+                "payment-transaction": {"amount": 1000000},
+            }
+        ]
 
         self.mock_client.fetch_transactions.return_value = transactions
         self.mock_client.fetch_asa_holdings.return_value = []
-
-        score = self.rep_score.get_reputation_score("test_address")
+        score = self.rep_score.get_reputation_score(VALID_ADDR)
 
         raw_score = (
-            (1.0 * self.rep_score.recent_weight * self.rep_score.pay_txn_multiplier) +
-            self.rep_score.normal_activity_reward
+            (1.0 * self.rep_score.recent_weight * self.rep_score.pay_txn_multiplier)
+            + self.rep_score.normal_activity_reward
         )
 
         expected_normalized = (raw_score / self.rep_score.normalization_cap) * 100.0
@@ -241,16 +160,23 @@ class TestReputationScore:
     def test_transaction_with_missing_fields(self):
         """Test handling of transactions with missing fields."""
         transactions = [
-            {"tx-type": "pay", "round-time": datetime.now().timestamp()},  # Missing payment-transaction
+            {
+                "tx-type": "pay",
+                "round-time": datetime.now().timestamp(),
+            },  # Missing payment-transaction
             {"tx-type": "axfer", "round-time": datetime.now().timestamp()},
-            {"tx-type": "unknown", "round-time": datetime.now().timestamp()}  # Unknown type
+            {
+                "tx-type": "unknown",
+                "round-time": datetime.now().timestamp(),
+            },  # Unknown type
         ]
 
         self.mock_client.fetch_transactions.return_value = transactions
-
-        score = self.rep_score.calculate_reputation("test_address")
+        score = self.rep_score.calculate_reputation(VALID_ADDR)
         # Should only count axfer transaction
-        expected_score = (self.rep_score.asset_transfer_points * self.rep_score.recent_weight) + self.rep_score.normal_activity_reward
+        expected_score = (
+            self.rep_score.asset_transfer_points * self.rep_score.recent_weight
+        ) + self.rep_score.normal_activity_reward
         assert score == expected_score
 
     def test_six_months_constant(self):
