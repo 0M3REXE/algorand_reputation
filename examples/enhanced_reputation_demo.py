@@ -80,8 +80,7 @@ def main():
                   f"Score: {item['score']}")
 
         summary = comparison['summary']
-        print("
-Summary:")
+        print("\nSummary:")
         print(f"  Total Accounts: {summary['total_accounts']}")
         print(f"  Valid Accounts: {summary['valid_accounts']}")
         print(f"  Average Score: {summary['average_score']:.2f}")
@@ -125,8 +124,7 @@ Summary:")
                 print(f"  {tx_type}: {count}")
 
         score_dist = insights['score_distribution']
-        print("
-Score Distribution:")
+        print("\nScore Distribution:")
         print(f"  Excellent (≥90): {score_dist['excellent']}")
         print(f"  Good (70-89): {score_dist['good']}")
         print(f"  Fair (50-69): {score_dist['fair']}")
