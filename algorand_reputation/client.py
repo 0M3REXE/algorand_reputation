@@ -121,7 +121,18 @@ class AlgorandClient:
 
     # --------------- public API ---------------
     def fetch_account_balance(self, account_address: str) -> Optional[float]:
-        """Return account balance in ALGOs or None on error."""
+        """Return account balance in ALGOs or None on error.
+
+        Parameters
+        ----------
+        account_address: str
+            Algorand address to query. Normalized and validated before use.
+
+        Returns
+        -------
+        Optional[float]
+            Account balance in ALGOs (not microalgos), or None on error.
+        """
         try:
             addr = self._validate_address(account_address)
             account_info = self._with_retry(self.algod_client.account_info, addr)
@@ -133,8 +144,17 @@ class AlgorandClient:
     def fetch_transactions(self, account_address: str, limit: int = 1000) -> List[Dict[str, Any]]:
         """Fetch recent transactions for an address.
 
-        Returns empty list on failure. Limit parameter caps result size
-        (indexer may page beyond but we keep simple).
+        Parameters
+        ----------
+        account_address: str
+            Algorand address to query. Normalized and validated before use.
+        limit: int
+            Maximum number of transactions to return (client-side cap).
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            A list of indexer transaction dicts; empty list on failure.
         """
         try:
             addr = self._validate_address(account_address)
@@ -151,7 +171,15 @@ class AlgorandClient:
     def fetch_asa_holdings(self, account_address: str) -> List[Dict[str, Any]]:
         """Return ASA (Algorand Standard Asset) holdings for an address.
 
-        Empty list on failure.
+        Parameters
+        ----------
+        account_address: str
+            Algorand address to query. Normalized and validated before use.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            A list of asset holding dicts; empty list on failure.
         """
         try:
             addr = self._validate_address(account_address)
