@@ -1,8 +1,7 @@
-"""Algorand Reputation Score package.
+"""Algorand Reputation Score package public API surface."""
 
-Usage:
-	from algorand_reputation import AlgorandClient, ReputationScore
-"""
+from __future__ import annotations
+
 from .client import AlgorandClient
 from .reputation import ReputationScore
 
