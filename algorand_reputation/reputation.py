@@ -134,34 +134,46 @@ class ReputationScore:
         return 0.0
 
     def calculate_reputation(self, account_address: str) -> float:
-        """Calculate reputation score with enhanced analysis."""
+        """Calculate raw reputation score for an address.
+
+        Aggregates per-transaction scores (type × recency), applies pattern
+        bonuses/penalties, frequency reward/penalty, and inactivity decay.
+
+        Returns the raw (non-normalized) score; use `get_reputation_score`
+        to get a 0–100 normalized value.
+        """
         txns = list(self.client.fetch_transactions(account_address))
         if not txns:
             return 0.0
-
+        
         # Analyze transaction patterns
         pattern_analysis = self.analyze_transaction_patterns(txns)
-
+        
         score = 0.0
         last_ts = 0.0
-
+        
         # Calculate score for each transaction
         for txn in txns:
             score += self.calculate_transaction_score(txn)
             ts = txn.get("round-time") or txn.get("roundTime") or 0
             if ts:
                 last_ts = max(last_ts, float(ts))
-
+        
         # Add pattern-based bonuses
         score += pattern_analysis["receiver_diversity_score"]
-
+        
         # Add frequency and activity bonuses
         score += self.transaction_frequency_score(txns)
         score += self.apply_reputation_decay(last_ts)
-
+        
         return score
 
     def normalize_score(self, raw: float) -> float:
+        """Normalize a raw score into [0, 100].
+
+        If `normalization_cap` is 0 or negative, returns 0.0.
+        The result is rounded to 2 decimal places.
+        """
         if self.normalization_cap <= 0:
             return 0.0
         return round(min((raw / self.normalization_cap) * 100.0, 100.0), 2)
@@ -196,7 +208,11 @@ class ReputationScore:
         return base_score
 
     def get_reputation_score(self, account_address: str) -> float:
-        """Get normalized reputation score for an account."""
+        """Compute final normalized reputation score for an address.
+
+        Adds ASA holding contribution to the raw score from
+        `calculate_reputation` and then normalizes to 0–100.
+        """
         raw = self.calculate_reputation(account_address)
         for asset in self.client.fetch_asa_holdings(account_address):
             raw += (asset.get("amount", 0) / 1e6) * self.asa_holding_multiplier

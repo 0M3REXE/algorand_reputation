@@ -49,11 +49,19 @@ class AlgorandClient:
         rate_limit_per_sec: Optional[float] = None,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
+        *,
+        enable_jitter: bool | None = None,
     ) -> None:
         network_choice = network_choice.lower().strip()
         if network_choice not in NETWORKS:
             network_choice = "testnet"
         self.network_choice = network_choice
+
+        # Env-driven toggles (None means use env fallback; else honor arg)
+        if enable_jitter is None:
+            env_val = os.getenv("ALGOREP_RETRY_JITTER", "0").lower()
+            enable_jitter = env_val in {"1", "true", "yes", "on"}
+        self._enable_jitter = bool(enable_jitter)
 
         token = (
             purestake_token
@@ -106,6 +114,8 @@ class AlgorandClient:
 
     def _with_retry(self, func, *args, **kwargs):
         """Execute a callable with throttle and retry/backoff on transient errors."""
+        import random
+
         attempt = 0
         while True:
             try:
@@ -115,9 +125,10 @@ class AlgorandClient:
                 attempt += 1
                 if attempt > self._max_retries:
                     raise
-                # exponential backoff
-                delay = self._backoff_factor * (2 ** (attempt - 1))
-                time.sleep(delay)
+                # exponential backoff + optional jitter
+                base_delay = self._backoff_factor * (2 ** (attempt - 1))
+                jitter = random.uniform(0, base_delay / 2) if self._enable_jitter else 0.0
+                time.sleep(base_delay + jitter)
 
     # --------------- public API ---------------
     def fetch_account_balance(self, account_address: str) -> Optional[float]:
@@ -150,6 +161,7 @@ class AlgorandClient:
             Algorand address to query. Normalized and validated before use.
         limit: int
             Maximum number of transactions to return (client-side cap).
+            Values <= 0 default to 1; values > 10000 clamp to 10000.
 
         Returns
         -------
@@ -158,10 +170,11 @@ class AlgorandClient:
         """
         try:
             addr = self._validate_address(account_address)
+            safe_limit = 1 if limit <= 0 else min(int(limit), 10000)
             response = self._with_retry(
                 self.indexer_client.search_transactions_by_address,
                 addr,
-                limit=limit,
+                limit=safe_limit,
             )
             return response.get("transactions", [])
         except Exception as e:  # pragma: no cover
