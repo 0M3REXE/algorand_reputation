@@ -6,9 +6,10 @@ for resilient access to Algorand nodes (algod) and the indexer.
 
 from __future__ import annotations
 
+import logging
 import os
 import time
-from typing import Any, Dict, List, Optional, Final, Callable, TypeVar
+from typing import Any, Callable, Dict, Final, List, Optional, TypeVar
 
 from algosdk import encoding as algoenc
 from algosdk.v2client import algod, indexer
@@ -42,6 +43,13 @@ class AlgorandClient:
         Number of retries on transient failures (e.g., rate limit/timeout).
     backoff_factor: float
         Exponential backoff base delay in seconds.
+
+    Environment variables (optional overrides)
+    -----------------------------------------
+    - ALGOREP_RATE_LIMIT_PER_SEC: float rate limit shared across calls
+    - ALGOREP_MAX_RETRIES: int number of retry attempts
+    - ALGOREP_BACKOFF_FACTOR: float backoff base delay seconds
+    - ALGOREP_RETRY_JITTER: 1/true/yes/on to enable backoff jitter
     """
 
     def __init__(
@@ -103,6 +111,7 @@ class AlgorandClient:
         self.headers = {"X-API-Key": token}
         self.algod_client = algod.AlgodClient(token, self.algod_address, self.headers)
         self.indexer_client = indexer.IndexerClient(token, self.indexer_address, self.headers)
+        self._log = logging.getLogger(__name__)
 
         # rate limiting
         self._rate_limit_per_sec = rate_limit_per_sec
@@ -178,7 +187,7 @@ class AlgorandClient:
                 account_info = json.loads(account_info)
             return account_info.get("amount", 0) / 1e6
         except Exception as e:  # pragma: no cover - network failures
-            print(f"[algorand_reputation] Error fetching account balance: {e}")
+            self._log.warning("Error fetching account balance: %s", e)
             return None
 
     def fetch_transactions(self, account_address: str, limit: int = 1000) -> List[Dict[str, Any]]:
@@ -207,7 +216,7 @@ class AlgorandClient:
             )
             return response.get("transactions", [])
         except Exception as e:  # pragma: no cover
-            print(f"[algorand_reputation] Error fetching transactions: {e}")
+            self._log.warning("Error fetching transactions: %s", e)
             return []
 
     def fetch_asa_holdings(self, account_address: str) -> List[Dict[str, Any]]:
@@ -228,7 +237,7 @@ class AlgorandClient:
             response = self._with_retry(self.indexer_client.lookup_account_assets, addr)
             return response.get("assets", [])
         except Exception as e:  # pragma: no cover
-            print(f"[algorand_reputation] Error fetching ASA holdings: {e}")
+            self._log.warning("Error fetching ASA holdings: %s", e)
             return []
 
     def network(self) -> str:
