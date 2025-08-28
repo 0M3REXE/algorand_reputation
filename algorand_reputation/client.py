@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict, List, Optional, Final
+from typing import Any, Dict, List, Optional, Final, Callable, TypeVar
 
 from algosdk import encoding as algoenc
 from algosdk.v2client import algod, indexer
+
+T = TypeVar("T")
 
 NETWORKS: Final = {
     "mainnet": {
@@ -93,6 +95,7 @@ class AlgorandClient:
 
     # --------------- internal helpers ---------------
     def _throttle(self) -> None:
+        """Sleep just enough to honor the configured client-side rate limit."""
         if self._min_interval <= 0:
             return
         now = time.time()
@@ -102,7 +105,7 @@ class AlgorandClient:
         self._last_call_time = time.time()
 
     def _normalize_address(self, address: str) -> str:
-        """Trim and normalize address casing for validation."""
+        """Trim whitespace and normalize casing for downstream validation."""
         return (address or "").strip().upper()
 
     def _validate_address(self, address: str) -> str:
@@ -112,8 +115,11 @@ class AlgorandClient:
             raise ValueError(f"Invalid Algorand address: {address!r}")
         return normalized
 
-    def _with_retry(self, func, *args, **kwargs):
-        """Execute a callable with throttle and retry/backoff on transient errors."""
+    def _with_retry(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+        """Execute `func(*args, **kwargs)` with throttle and retry/backoff.
+
+        Retries up to `_max_retries` with exponential backoff and optional jitter.
+        """
         import random
 
         attempt = 0
@@ -147,6 +153,9 @@ class AlgorandClient:
         try:
             addr = self._validate_address(account_address)
             account_info = self._with_retry(self.algod_client.account_info, addr)
+            if isinstance(account_info, (bytes, bytearray)):
+                import json
+                account_info = json.loads(account_info)
             return account_info.get("amount", 0) / 1e6
         except Exception as e:  # pragma: no cover - network failures
             print(f"[algorand_reputation] Error fetching account balance: {e}")
