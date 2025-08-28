@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Callable, Dict, Final, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, Final, Callable, TypeVar
 
 from algosdk import encoding as algoenc
 from algosdk.v2client import algod, indexer
@@ -105,13 +105,12 @@ class AlgorandClient:
                     "ALGOD_API_KEY/PURESTAKE_API_KEY env var."
                 )
             )
-
-        self.algod_address = NETWORKS[network_choice]["algod"]
-        self.indexer_address = NETWORKS[network_choice]["indexer"]
-        self.headers = {"X-API-Key": token}
-        self.algod_client = algod.AlgodClient(token, self.algod_address, self.headers)
-        self.indexer_client = indexer.IndexerClient(token, self.indexer_address, self.headers)
-        self._log = logging.getLogger(__name__)
+    self.algod_address = NETWORKS[network_choice]["algod"]
+    self.indexer_address = NETWORKS[network_choice]["indexer"]
+    self.headers = {"X-API-Key": token}
+    self.algod_client = algod.AlgodClient(token, self.algod_address, self.headers)
+    self.indexer_client = indexer.IndexerClient(token, self.indexer_address, self.headers)
+    self._log = logging.getLogger(__name__)
 
         # rate limiting
         self._rate_limit_per_sec = rate_limit_per_sec
@@ -130,7 +129,14 @@ class AlgorandClient:
         now = time.time()
         delta = now - self._last_call_time
         if delta < self._min_interval:
-            time.sleep(self._min_interval - delta)
+            sleep_for = self._min_interval - delta
+            # low-volume debug log only when sleeping
+            if sleep_for > 0:
+                try:
+                    self._log.debug("throttle: sleeping %.3fs", sleep_for)
+                except Exception:
+                    pass
+                time.sleep(sleep_for)
         self._last_call_time = time.time()
 
     def _normalize_address(self, address: str) -> str:
