@@ -77,7 +77,11 @@ class ReputationScore:
     def analyze_transaction_patterns(
         self, transactions: Iterable[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Analyze transaction patterns for advanced scoring."""
+        """Analyze transaction patterns for advanced scoring.
+
+        Returns a dict with keys: unique_receivers, total_volume,
+        avg_transaction_size, transaction_types, receiver_diversity_score.
+        """
         txn_list = list(transactions)
         if not txn_list:
             return {
@@ -179,7 +183,10 @@ class ReputationScore:
         return round(min((raw / self.normalization_cap) * 100.0, 100.0), 2)
 
     def calculate_transaction_score(self, txn: Dict[str, Any]) -> float:
-        """Calculate score for a single transaction with enhanced logic."""
+        """Calculate score for a single transaction with enhanced logic.
+
+        Supports tx types: pay, axfer, appl, acfg, afrz, keyreg.
+        """
         ts = txn.get("round-time") or txn.get("roundTime") or 0
         weight = self.calculate_recency_weight(ts)
         tx_type = txn.get("tx-type") or txn.get("txType")
