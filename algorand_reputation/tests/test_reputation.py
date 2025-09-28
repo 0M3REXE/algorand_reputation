@@ -1,4 +1,5 @@
 import time
+
 from algorand_reputation.reputation import ReputationScore
 
 
@@ -7,7 +8,11 @@ class FakeClient:
         now = int(time.time())
         # Two recent txns, one older than 6 months (simulate by subtracting seconds)
         self._txns = [
-            {"round-time": now - 1000, "tx-type": "pay", "payment-transaction": {"amount": 5_000_000}},
+            {
+                "round-time": now - 1000,
+                "tx-type": "pay",
+                "payment-transaction": {"amount": 5_000_000},
+            },
             {"round-time": now - 2000, "tx-type": "axfer"},
             {"round-time": now - (60*60*24*30*7), "tx-type": "appl"},  # ~7 months old
         ]

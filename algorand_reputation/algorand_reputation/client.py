@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import time
 from typing import Any, Dict, List, Optional
+
 from algosdk.v2client import algod, indexer
 
 NETWORKS = {
@@ -48,7 +49,10 @@ class AlgorandClient:
         )
         if not token:
             raise ValueError(
-                "Missing PureStake / Nodely API token. Pass purestake_token or set ALGOD_API_KEY/PURESTAKE_API_KEY env var."
+                (
+                    "Missing PureStake / Nodely API token. Pass purestake_token or set "
+                    "ALGOD_API_KEY/PURESTAKE_API_KEY env var."
+                )
             )
 
         self.algod_address = NETWORKS[network_choice]["algod"]
@@ -86,7 +90,8 @@ class AlgorandClient:
     def fetch_transactions(self, account_address: str, limit: int = 1000) -> List[Dict[str, Any]]:
         """Fetch recent transactions for an address.
 
-        Returns empty list on failure. Limit parameter caps result size (indexer may page beyond but we keep simple).
+        Returns empty list on failure. Limit parameter caps result size
+        (indexer may page beyond but we keep simple).
         """
         try:
             self._throttle()

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional, Final, Callable, TypeVar
+from typing import Any, Callable, Dict, Final, List, Optional, TypeVar
 
 from algosdk import encoding as algoenc
 from algosdk.v2client import algod, indexer
