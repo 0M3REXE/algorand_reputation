@@ -105,12 +105,13 @@ class AlgorandClient:
                     "ALGOD_API_KEY/PURESTAKE_API_KEY env var."
                 )
             )
-    self.algod_address = NETWORKS[network_choice]["algod"]
-    self.indexer_address = NETWORKS[network_choice]["indexer"]
-    self.headers = {"X-API-Key": token}
-    self.algod_client = algod.AlgodClient(token, self.algod_address, self.headers)
-    self.indexer_client = indexer.IndexerClient(token, self.indexer_address, self.headers)
-    self._log = logging.getLogger(__name__)
+
+        self.algod_address = NETWORKS[network_choice]["algod"]
+        self.indexer_address = NETWORKS[network_choice]["indexer"]
+        self.headers = {"X-API-Key": token}
+        self.algod_client = algod.AlgodClient(token, self.algod_address, self.headers)
+        self.indexer_client = indexer.IndexerClient(token, self.indexer_address, self.headers)
+        self._log = logging.getLogger(__name__)
 
         # rate limiting
         self._rate_limit_per_sec = rate_limit_per_sec
